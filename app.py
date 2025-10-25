@@ -1,6 +1,6 @@
 import streamlit as st
-import matplotlib
-matplotlib.use('Agg')  # Esto debe ir ANTES de importar pyplot
+
+
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -372,3 +372,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+

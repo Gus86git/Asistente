@@ -1,8 +1,8 @@
 import streamlit as st
 import os
 import time
-from sentence_transformers import SentenceTransformer
-import faiss
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import pickle
 
@@ -42,7 +42,7 @@ PROFESORES = {
 }
 
 # Título
-st.title("🎓 Asistente 4 Materias - Búsqueda Semántica")
+st.title("🎓 Asistente 4 Materias - Búsqueda Inteligente")
 st.markdown("**Encuentra información exacta en tus materiales de estudio** 🔍")
 
 # Sidebar
@@ -74,23 +74,20 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# Sistema de Búsqueda Semántica Optimizado
+# Sistema de Búsqueda con TF-IDF
 @st.cache_resource
-def inicializar_busqueda_semantica():
-    """Inicializar el sistema de búsqueda semántica"""
+def inicializar_sistema_busqueda():
+    """Inicializar el sistema de búsqueda con TF-IDF"""
     try:
         # Verificar carpeta conocimiento
         if not os.path.exists("conocimiento"):
             st.error("❌ No se encuentra la carpeta 'conocimiento'")
             return None, None, None
         
-        # Cargar modelo de embeddings (más ligero)
-        modelo = SentenceTransformer('all-MiniLM-L6-v2')
-        
         # Cargar todos los documentos
-        documentos = []
         textos = []
         metadatos = []
+        archivos_cargados = 0
         
         for materia_dir in os.listdir("conocimiento"):
             materia_path = os.path.join("conocimiento", materia_dir)
@@ -103,7 +100,7 @@ def inicializar_busqueda_semantica():
                                 contenido = f.read().strip()
                                 if contenido:
                                     # Dividir en chunks
-                                    chunks = dividir_texto(contenido, 500)
+                                    chunks = dividir_texto(contenido, 600, 100)
                                     for i, chunk in enumerate(chunks):
                                         textos.append(chunk)
                                         metadatos.append({
@@ -112,6 +109,7 @@ def inicializar_busqueda_semantica():
                                             "fuente": f"{materia_dir}/{archivo}",
                                             "chunk": i
                                         })
+                                    archivos_cargados += 1
                         except Exception as e:
                             continue
         
@@ -119,22 +117,26 @@ def inicializar_busqueda_semantica():
             st.error("❌ No se encontraron documentos con contenido")
             return None, None, None
         
-        # Crear embeddings
-        embeddings = modelo.encode(textos, show_progress_bar=False)
+        # Crear vectorizador TF-IDF
+        vectorizer = TfidfVectorizer(
+            max_features=5000,
+            ngram_range=(1, 2),
+            stop_words=None,  # Mantener todas las palabras en español
+            min_df=1,
+            max_df=0.95
+        )
         
-        # Crear índice FAISS
-        dimension = embeddings.shape[1]
-        index = faiss.IndexFlatL2(dimension)
-        index.add(embeddings.astype('float32'))
+        # Generar vectores TF-IDF
+        matriz_tfidf = vectorizer.fit_transform(textos)
         
-        st.success(f"✅ Sistema listo: {len(textos)} fragmentos indexados")
-        return modelo, index, (textos, metadatos)
+        st.success(f"✅ Sistema listo: {archivos_cargados} archivos, {len(textos)} fragmentos indexados")
+        return vectorizer, matriz_tfidf, (textos, metadatos)
         
     except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
+        st.error(f"❌ Error al inicializar: {str(e)}")
         return None, None, None
 
-def dividir_texto(texto, tamano_chunk=500, overlap=100):
+def dividir_texto(texto, tamano_chunk=600, overlap=100):
     """Dividir texto en chunks con overlap"""
     chunks = []
     inicio = 0
@@ -152,45 +154,58 @@ def dividir_texto(texto, tamano_chunk=500, overlap=100):
                 chunk = chunk[:corte+1]
                 fin = inicio + corte + 1
         
-        chunks.append(chunk.strip())
+        if chunk.strip():
+            chunks.append(chunk.strip())
+        
         inicio = fin - overlap
+        
+        if inicio >= len(texto):
+            break
     
     return chunks
 
 # Inicializar sistema
 with st.spinner("🔄 Cargando sistema de búsqueda..."):
-    modelo, index, datos = inicializar_busqueda_semantica()
+    vectorizer, matriz_tfidf, datos = inicializar_sistema_busqueda()
 
 # Función de búsqueda
 def buscar_informacion(consulta, materia_objetivo=None, k=3):
-    """Buscar información relevante"""
-    if modelo is None or index is None or datos is None:
+    """Buscar información relevante usando TF-IDF"""
+    if vectorizer is None or matriz_tfidf is None or datos is None:
         return [], "Sistema de búsqueda no disponible"
     
     try:
         textos, metadatos = datos
         
-        # Generar embedding de la consulta
-        query_embedding = modelo.encode([consulta])
+        # Vectorizar la consulta
+        query_vector = vectorizer.transform([consulta])
         
-        # Buscar en FAISS
-        distances, indices = index.search(query_embedding.astype('float32'), k*3)
+        # Calcular similitud coseno
+        similitudes = cosine_similarity(query_vector, matriz_tfidf)[0]
         
-        # Filtrar por materia si es necesario
+        # Obtener índices ordenados por similitud
+        indices_ordenados = np.argsort(similitudes)[::-1]
+        
+        # Filtrar y obtener los mejores resultados
         resultados = []
-        for idx, dist in zip(indices[0], distances[0]):
+        for idx in indices_ordenados:
+            if similitudes[idx] < 0.05:  # Umbral mínimo de similitud
+                continue
+            
             if materia_objetivo and metadatos[idx]["materia"] != materia_objetivo:
                 continue
+            
             resultados.append({
                 "texto": textos[idx],
                 "metadata": metadatos[idx],
-                "score": float(dist)
+                "score": float(similitudes[idx])
             })
+            
             if len(resultados) >= k:
                 break
         
         if not resultados:
-            return [], "No encontré información relevante"
+            return [], "No encontré información relevante para tu búsqueda"
         
         return resultados, None
         
@@ -201,7 +216,7 @@ def generar_respuesta(consulta, resultados, materia):
     """Generar respuesta formateada"""
     
     if not resultados:
-        return "No encontré información específica para tu búsqueda.\n\n💡 Intenta reformular tu pregunta o usar otras palabras clave."
+        return "No encontré información específica para tu búsqueda.\n\n💡 **Sugerencias:**\n- Intenta usar palabras clave diferentes\n- Reformula tu pregunta\n- Verifica que la información esté en los archivos de la materia"
     
     respuesta = f"**🔍 Resultados para: \"{consulta}\"**\n\n"
     
@@ -211,18 +226,37 @@ def generar_respuesta(consulta, resultados, materia):
         fuente = r['metadata']['fuente']
         if fuente not in por_archivo:
             por_archivo[fuente] = []
-        por_archivo[fuente].append(r['texto'])
+        por_archivo[fuente].append({
+            'texto': r['texto'],
+            'score': r['score']
+        })
     
     # Mostrar resultados
-    for fuente, textos in por_archivo.items():
+    for fuente, items in por_archivo.items():
         respuesta += f"**📁 {fuente}**\n\n"
-        for texto in textos:
-            if len(texto) > 400:
-                texto = texto[:400] + "..."
-            respuesta += f"> {texto}\n\n"
+        for item in items:
+            texto = item['texto']
+            score = item['score']
+            
+            # Truncar si es muy largo
+            if len(texto) > 500:
+                texto = texto[:500] + "..."
+            
+            # Mostrar con indicador de relevancia
+            relevancia = "🟢" if score > 0.3 else "🟡" if score > 0.15 else "🟠"
+            respuesta += f"{relevancia} {texto}\n\n"
     
     respuesta += "---\n"
-    respuesta += f"**💡 Tip:** Encontré {len(resultados)} fragmentos relevantes en tus archivos."
+    respuesta += f"**💡 Tip:** Encontré **{len(resultados)}** fragmentos relevantes.\n"
+    
+    # Mostrar nivel de confianza
+    score_promedio = sum(r['score'] for r in resultados) / len(resultados)
+    if score_promedio > 0.3:
+        respuesta += "✅ Alta confianza en los resultados"
+    elif score_promedio > 0.15:
+        respuesta += "⚠️ Confianza media - verifica la información"
+    else:
+        respuesta += "⚠️ Baja confianza - los resultados pueden ser aproximados"
     
     return respuesta
 
@@ -230,7 +264,7 @@ def generar_respuesta(consulta, resultados, materia):
 if "messages" not in st.session_state:
     st.session_state.messages = [{
         "role": "assistant",
-        "content": f"¡Hola! Soy tu asistente para **{PROFESORES[materia_seleccionada]['nombre']}**. 🔍\n\nHazme cualquier pregunta sobre el material de la materia."
+        "content": f"¡Hola! 👋 Soy tu asistente para **{PROFESORES[materia_seleccionada]['nombre']}** {PROFESORES[materia_seleccionada]['emoji']}\n\nHazme cualquier pregunta sobre el material de la materia y buscaré en tus archivos."
     }]
 
 # Mostrar historial
@@ -255,11 +289,11 @@ if prompt := st.chat_input(f"Buscar en {PROFESORES[materia_seleccionada]['nombre
             )
             
             if error:
-                respuesta = f"**{error}**\n\n💡 Intenta con otras palabras clave."
+                respuesta = f"**❌ {error}**\n\n💡 Intenta con otras palabras clave o verifica que los archivos de la materia contengan información sobre este tema."
             else:
                 respuesta = generar_respuesta(prompt, resultados, materia_seleccionada)
         
-        # Mostrar con efecto
+        # Mostrar con efecto de escritura
         placeholder = st.empty()
         texto_completo = ""
         
@@ -274,37 +308,57 @@ if prompt := st.chat_input(f"Buscar en {PROFESORES[materia_seleccionada]['nombre
 
 # Panel de estado
 st.markdown("---")
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric("Materia", PROFESORES[materia_seleccionada]['emoji'])
+    st.metric("📚 Materia", PROFESORES[materia_seleccionada]['nombre'][:8] + "...")
 
 with col2:
-    status = "🟢 Activo" if modelo else "🔴 Inactivo"
+    status = "🟢" if vectorizer else "🔴"
     st.metric("Estado", status)
 
 with col3:
     if datos:
-        st.metric("Documentos", len(datos[0]))
+        st.metric("📄 Fragmentos", len(datos[0]))
     else:
-        st.metric("Documentos", "0")
+        st.metric("📄 Fragmentos", "0")
+
+with col4:
+    if datos and matriz_tfidf is not None:
+        archivos = len(set(m['fuente'] for m in datos[1]))
+        st.metric("📁 Archivos", archivos)
+    else:
+        st.metric("📁 Archivos", "0")
 
 # Ejemplos de uso
 st.markdown("---")
-st.info(f"""
-**💡 Ejemplos de búsqueda para {PROFESORES[materia_seleccionada]['nombre']}:**
+
+col_ej1, col_ej2 = st.columns(2)
+
+with col_ej1:
+    st.info(f"""
+**💡 Ejemplos de búsqueda:**
 
 - "¿Cuál es la fórmula de...?"
 - "Ejercicio 3 de la guía"
-- "Fecha del examen"
-- "Requisitos del trabajo práctico"
+- "Fecha del examen parcial"
 - "Explicación de [concepto]"
+""")
+
+with col_ej2:
+    st.success(f"""
+**✨ Tips para mejores resultados:**
+
+- Usa palabras clave específicas
+- Menciona el tema o concepto exacto
+- Si no encuentras algo, reformula
+- Verifica el nombre de los archivos
 """)
 
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: green; font-weight: bold;'>"
-    "🎓 ASISTENTE 4 MATERIAS - BÚSQUEDA SEMÁNTICA OPTIMIZADA"
+    "🎓 ASISTENTE 4 MATERIAS - BÚSQUEDA INTELIGENTE OPTIMIZADA PARA STREAMLIT CLOUD"
     "</div>",
     unsafe_allow_html=True
 )

@@ -1,4 +1,6 @@
 import streamlit as st
+import matplotlib
+matplotlib.use('Agg')  # Esto debe ir ANTES de importar pyplot
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -189,34 +191,38 @@ def crear_grafo_decisiones():
     return G
 
 def visualizar_grafo():
-    G = crear_grafo_decisiones()
-    
-    plt.figure(figsize=(14, 10))
-    
-    # Configurar posiciones
-    pos = nx.spring_layout(G, k=3, iterations=50, seed=42)
-    
-    # Dibujar nodos
-    node_colors = [G.nodes[n]['color'] for n in G.nodes()]
-    node_sizes = [G.nodes[n]['size'] for n in G.nodes()]
-    
-    nx.draw_networkx_nodes(G, pos, node_color=node_colors, 
-                          node_size=node_sizes, alpha=0.9,
-                          edgecolors='black', linewidths=2)
-    
-    # Dibujar aristas
-    nx.draw_networkx_edges(G, pos, edge_color='gray', arrows=True, 
-                          arrowsize=20, arrowstyle='->', width=1.5, alpha=0.7)
-    
-    # Dibujar etiquetas
-    labels = {nodo: nodo.replace('REGLA_', 'R') for nodo in G.nodes()}
-    nx.draw_networkx_labels(G, pos, labels, font_size=8, font_weight='bold')
-    
-    plt.title("🏗️ GRAFO DE DECISIONES - SISTEMA EXPERTO DE RIESGO URBANO", 
-              fontsize=16, fontweight='bold', pad=20)
-    plt.axis('off')
-    
-    return plt.gcf()
+    try:
+        G = crear_grafo_decisiones()
+        
+        fig, ax = plt.subplots(figsize=(14, 10))
+        
+        # Configurar posiciones
+        pos = nx.spring_layout(G, k=3, iterations=50, seed=42)
+        
+        # Dibujar nodos
+        node_colors = [G.nodes[n]['color'] for n in G.nodes()]
+        node_sizes = [G.nodes[n]['size'] for n in G.nodes()]
+        
+        nx.draw_networkx_nodes(G, pos, node_color=node_colors, 
+                              node_size=node_sizes, alpha=0.9,
+                              edgecolors='black', linewidths=2, ax=ax)
+        
+        # Dibujar aristas
+        nx.draw_networkx_edges(G, pos, edge_color='gray', arrows=True, 
+                              arrowsize=20, arrowstyle='->', width=1.5, alpha=0.7, ax=ax)
+        
+        # Dibujar etiquetas
+        labels = {nodo: nodo.replace('REGLA_', 'R') for nodo in G.nodes()}
+        nx.draw_networkx_labels(G, pos, labels, font_size=8, font_weight='bold', ax=ax)
+        
+        ax.set_title("🏗️ GRAFO DE DECISIONES - SISTEMA EXPERTO DE RIESGO URBANO", 
+                  fontsize=16, fontweight='bold', pad=20)
+        ax.axis('off')
+        
+        return fig
+    except Exception as e:
+        st.error(f"Error al generar el grafo: {e}")
+        return None
 
 # -------------------------
 # INTERFAZ STREAMLIT
@@ -233,7 +239,7 @@ with st.sidebar:
     **Variables de Evaluación:**
     - 🏭 Tipo de obra
     - ⏰ Horario de trabajo  
-    - 📅 Duración del proyecto
+    - 📅 Duración del projecto
     - 🗺️ Zona urbana afectada
     
     **Niveles de Riesgo:**
@@ -293,7 +299,10 @@ with col2:
     
     # Mostrar grafo
     fig = visualizar_grafo()
-    st.pyplot(fig)
+    if fig:
+        st.pyplot(fig)
+    else:
+        st.info("El grafo de decisiones no está disponible temporalmente")
 
 # Mostrar resultados si existen
 if hasattr(st.session_state, 'mostrar_resultados') and st.session_state.mostrar_resultados:

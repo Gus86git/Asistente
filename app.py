@@ -110,7 +110,7 @@ def motor_inferencia(tipo_obra, horario, duracion, zona):
 # VISUALIZACIÓN ALTERNATIVA - SIN MATPLOTLIB
 # -------------------------
 def mostrar_grafo_textual():
-    st.subheader("🕸️ Estructura del Sistema Experto")
+    st.subheader("Estructura del Sistema Experto")
     
     st.markdown("""
     **Flujo de Decisiones:**
@@ -345,10 +345,10 @@ st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: gray;'>
-        🏗️ Sistema Experto de Evaluación de Riesgo Urbano | 
-        Desarrollado con técnicas de Inteligencia Artificial | 
+        🏗️ Sistema Experto de Evaluación de Riesgo Urbano |
         Versión 2.0 - Streamlit Native
     </div>
     """,
     unsafe_allow_html=True
 )
+

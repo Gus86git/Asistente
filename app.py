@@ -1,6 +1,12 @@
 import streamlit as st
-import matplotlib.pyplot as plt
-import networkx as nx
+import json
+
+# Configuración de la página
+st.set_page_config(
+    page_title="Sistema Experto de Riesgo Urbano",
+    page_icon="🏗️",
+    layout="wide"
+)
 
 # -------------------------
 # BASE DE CONOCIMIENTO
@@ -8,167 +14,341 @@ import networkx as nx
 base_conocimiento = [
     {
         "id": "R1",
-        "condicion": lambda tipo_obra, horario, duracion, zona: \
-                    tipo_obra == "demolicion" and horario == "nocturno",
-        "accion": "PROHIBIR trabajos nocturnos - Implementar barreras acústicas",
-        "explicacion": "Demoliciones nocturnas generan alto impacto acústico en zonas urbanas"
+        "condicion": lambda datos: datos["tipo_obra"] == "demolicion" and datos["horario"] == "nocturno",
+        "accion": "🚨 PROHIBIR trabajos nocturnos - Implementar barreras acústicas",
+        "explicacion": "Demoliciones nocturnas generan alto impacto acústico en zonas urbanas según normativa ISO 9613-2",
+        "riesgo": "ALTO",
+        "categoria": "Acústico"
     },
     {
         "id": "R2",
-        "condicion": lambda tipo_obra, horario, duracion, zona: \
-                    tipo_obra == "excavacion" and horario == "nocturno",
-        "accion": "LIMITAR horarios nocturnos - Usar equipos silenciosos",
-        "explicacion": "Excavaciones nocturnas requieren control estricto de ruido"
+        "condicion": lambda datos: datos["tipo_obra"] == "excavacion" and datos["horario"] == "nocturno",
+        "accion": "⚠️ LIMITAR horarios nocturnos - Usar equipos silenciosos certificados",
+        "explicacion": "Excavaciones nocturnas requieren control estricto de ruido (Límite: 45 dB nocturno)",
+        "riesgo": "MEDIO",
+        "categoria": "Acústico"
     },
     {
         "id": "R3",
-        "condicion": lambda tipo_obra, horario, duracion, zona: \
-                    duracion > 60 and zona == "residencial",
-        "accion": "Monitoreo acústico continuo - Horarios restringidos 8:00-18:00",
-        "explicacion": "Obras prolongadas en zonas residenciales necesitan control de impacto"
+        "condicion": lambda datos: datos["duracion"] > 60 and "residencial" in datos["zona"],
+        "accion": "📊 Monitoreo acústico continuo - Horarios restringidos 8:00-18:00",
+        "explicacion": "Obras prolongadas en zonas residenciales necesitan control de impacto ambiental continuo",
+        "riesgo": "MEDIO",
+        "categoria": "Social"
     },
     {
         "id": "R4",
-        "condicion": lambda tipo_obra, horario, duracion, zona: \
-                    tipo_obra == "via_publica" and "centro" in zona,
-        "accion": "Plan de desvíos vial - Señalización avanzada",
-        "explicacion": "Obras en vía pública céntrica afectan significativamente el tráfico"
+        "condicion": lambda datos: datos["tipo_obra"] == "via_publica" and "centro" in datos["zona"],
+        "accion": "🚦 Plan de desvíos vial - Señalización avanzada - Coordinación con tránsito",
+        "explicacion": "Obras en vía pública céntrica afectan significativamente el tráfico según estudio de impacto vial",
+        "riesgo": "ALTO",
+        "categoria": "Vial"
     },
     {
         "id": "R5",
-        "condicion": lambda tipo_obra, horario, duracion, zona: \
-                    tipo_obra == "demolicion" and "residencial" in zona,
-        "accion": "Evacuación temporal vecinos - Protección fachadas colindantes",
-        "explicacion": "Demoliciones en zona residencial requieren seguridad extrema"
+        "condicion": lambda datos: datos["tipo_obra"] == "demolicion" and "residencial" in datos["zona"],
+        "accion": "🏠 Evacuación temporal vecinos - Protección fachadas colindantes - Seguro de responsabilidad",
+        "explicacion": "Demoliciones en zona residencial requieren seguridad extrema y protección a vecinos",
+        "riesgo": "ALTO",
+        "categoria": "Seguridad"
+    },
+    {
+        "id": "R6",
+        "condicion": lambda datos: "escolar" in datos["zona"] and datos["horario"] == "diurno",
+        "accion": "🏫 Suspender obras en horario escolar - Ruta peatonal segura",
+        "explicacion": "Obras cerca de zonas escolares requieren ajuste de horarios para seguridad de estudiantes",
+        "riesgo": "MEDIO",
+        "categoria": "Social"
+    },
+    {
+        "id": "R7",
+        "condicion": lambda datos: datos["tipo_obra"] == "excavacion_profunda" and datos["duracion"] > 30,
+        "accion": "🕳️ Estudio geotécnico obligatorio - Monitoreo de estructuras vecinas",
+        "explicacion": "Excavaciones profundas prolongadas requieren control geotécnico especializado",
+        "riesgo": "ALTO",
+        "categoria": "Seguridad"
     }
 ]
-
-# -------------------------
-# BASE DE HECHOS
-# -------------------------
-base_hechos = {
-    "tipo_obra_actual": "",
-    "horario_actual": "",
-    "duracion_actual": 0,
-    "zona_actual": "",
-    "diagnosticos": [],
-    "reglas_aplicadas": []
-}
-
-def actualizar_base_hechos(tipo_obra, horario, duracion, zona):
-    base_hechos["tipo_obra_actual"] = tipo_obra
-    base_hechos["horario_actual"] = horario
-    base_hechos["duracion_actual"] = duracion
-    base_hechos["zona_actual"] = zona
-    base_hechos["diagnosticos"] = []
-    base_hechos["reglas_aplicadas"] = []
 
 # -------------------------
 # MOTOR DE INFERENCIA
 # -------------------------
 def motor_inferencia(tipo_obra, horario, duracion, zona):
-    actualizar_base_hechos(tipo_obra, horario, duracion, zona)
+    datos_entrada = {
+        "tipo_obra": tipo_obra,
+        "horario": horario,
+        "duracion": duracion,
+        "zona": zona.lower()
+    }
+    
     resultados = []
+    reglas_aplicadas = []
+    
     for regla in base_conocimiento:
-        if regla["condicion"](tipo_obra, horario, duracion, zona):
-            resultados.append(regla["accion"])
-            base_hechos["diagnosticos"].append(regla["accion"])
-            base_hechos["reglas_aplicadas"].append(regla["id"])
-    return resultados if resultados else ["OBRA DE BAJO IMPACTO - Procedimientos estándar"]
+        if regla["condicion"](datos_entrada):
+            resultados.append({
+                "accion": regla["accion"],
+                "explicacion": regla["explicacion"],
+                "riesgo": regla["riesgo"],
+                "id": regla["id"],
+                "categoria": regla["categoria"]
+            })
+            reglas_aplicadas.append(regla["id"])
+    
+    if not resultados:
+        resultados.append({
+            "accion": "✅ OBRA DE BAJO IMPACTO - Procedimientos estándar aplicables",
+            "explicacion": "No se detectaron condiciones de riesgo elevado según los parámetros ingresados",
+            "riesgo": "BAJO",
+            "id": "R0",
+            "categoria": "General"
+        })
+    
+    return resultados, reglas_aplicadas, datos_entrada
 
 # -------------------------
-# MÓDULO DE EXPLICACIÓN
+# VISUALIZACIÓN ALTERNATIVA - SIN MATPLOTLIB
 # -------------------------
-def generar_explicacion():
-    explicaciones = []
-    for regla_id in base_hechos["reglas_aplicadas"]:
-        regla = next((r for r in base_conocimiento if r["id"] == regla_id), None)
-        if regla:
-            explicaciones.append(f"Regla {regla_id}: {regla['explicacion']}")
-    return explicaciones
-
-# -------------------------
-# VISUALIZACIÓN DEL GRAFO
-# -------------------------
-def crear_grafo_decisiones():
-    G = nx.DiGraph()
-    nodos = [
-        ("INICIO", {"color": "lightgreen", "size": 2000}),
-        ("TIPO_OBRA", {"color": "lightblue", "size": 1500}),
-        ("HORARIO", {"color": "lightblue", "size": 1500}),
-        ("DURACION", {"color": "lightblue", "size": 1500}),
-        ("ZONA", {"color": "lightblue", "size": 1500}),
-        ("EVALUACION", {"color": "yellow", "size": 1800}),
-        ("RIESGO_ALTO", {"color": "red", "size": 1200}),
-        ("RIESGO_MEDIO", {"color": "orange", "size": 1200}),
-        ("RIESGO_BAJO", {"color": "green", "size": 1200}),
-    ]
-    for i, regla in enumerate(base_conocimiento):
-        nodo_regla = (f"REGLA_{regla['id']}", {"color": "lightcoral", "size": 1000})
-        nodos.append(nodo_regla)
-    for nodo, atributos in nodos:
-        G.add_node(nodo, **atributos)
-
-    conexiones = [
-        ("INICIO", "TIPO_OBRA"),
-        ("TIPO_OBRA", "EVALUACION"),
-        ("HORARIO", "EVALUACION"),
-        ("DURACION", "EVALUACION"),
-        ("ZONA", "EVALUACION"),
-        ("EVALUACION", "RIESGO_ALTO"),
-        ("EVALUACION", "RIESGO_MEDIO"),
-        ("EVALUACION", "RIESGO_BAJO")
-    ]
-    for o, d in conexiones:
-        G.add_edge(o, d)
-
+def mostrar_grafo_textual():
+    st.subheader("🕸️ Estructura del Sistema Experto")
+    
+    st.markdown("""
+    **Flujo de Decisiones:**
+    ```
+    ENTRADA → [Tipo Obra, Horario, Duración, Zona] 
+              ↓
+    EVALUACIÓN → Motor de Inferencia
+              ↓
+    REGLAS APLICABLES → [R1, R2, R3, ...]
+              ↓
+    DIAGNÓSTICO → [Riesgo ALTO/MEDIO/BAJO]
+              ↓
+    RECOMENDACIONES → Medidas Específicas
+    ```
+    """)
+    
+    st.subheader("📋 Reglas del Sistema")
     for regla in base_conocimiento:
-        G.add_edge("EVALUACION", f"REGLA_{regla['id']}")
-        if "PROHIBIR" in regla["accion"] or "Evacuación" in regla["accion"]:
-            G.add_edge(f"REGLA_{regla['id']}", "RIESGO_ALTO")
-        elif "LIMITAR" in regla["accion"] or "Monitoreo" in regla["accion"]:
-            G.add_edge(f"REGLA_{regla['id']}", "RIESGO_MEDIO")
-        else:
-            G.add_edge(f"REGLA_{regla['id']}", "RIESGO_BAJO")
-    return G
-
-def visualizar_grafo():
-    G = crear_grafo_decisiones()
-    plt.figure(figsize=(12,8))
-    pos = nx.spring_layout(G, seed=42)
-    node_colors = [G.nodes[n]['color'] for n in G.nodes()]
-    node_sizes = [G.nodes[n]['size'] for n in G.nodes()]
-    nx.draw(G, pos, with_labels=True, node_color=node_colors, node_size=node_sizes,
-            font_size=7, font_weight="bold", edgecolors="black")
-    st.pyplot(plt.gcf())
+        with st.expander(f"Regla {regla['id']} - Riesgo {regla['riesgo']} - {regla['categoria']}"):
+            st.write(f"**Condición:** {regla['condicion'].__doc__ or 'Evaluación específica del contexto'}")
+            st.write(f"**Acción:** {regla['accion']}")
+            st.write(f"**Explicación:** {regla['explicacion']}")
 
 # -------------------------
 # INTERFAZ STREAMLIT
 # -------------------------
-st.title("🏗️ Sistema Experto de Riesgo Urbano")
 
-tipo_obra = st.selectbox("Tipo de obra:", ["demolicion", "excavacion", "via_publica", "construccion", "excavacion_profunda"])
-horario = st.selectbox("Horario:", ["diurno", "nocturno", "mixto"])
-duracion = st.slider("Duración (días):", 1, 180, 30)
-zona = st.text_input("Zona:", "residencial")
+# Header principal
+st.title("🏗️ Sistema Experto de Evaluación de Riesgo e Impacto Urbano")
+st.markdown("---")
 
-if st.button("Evaluar Riesgo"):
-    resultados = motor_inferencia(tipo_obra, horario, duracion, zona)
-    explicaciones = generar_explicacion()
+# Sidebar con información
+with st.sidebar:
+    st.header("ℹ️ Información del Sistema")
+    st.markdown("""
+    **Variables de Evaluación:**
+    - 🏭 **Tipo de obra**: Naturaleza de la construcción
+    - ⏰ **Horario**: Turnos de trabajo  
+    - 📅 **Duración**: Tiempo total del proyecto
+    - 🗺️ **Zona**: Área urbana afectada
+    
+    **Niveles de Riesgo:**
+    - 🔴 **ALTO**: Medidas restrictivas inmediatas
+    - 🟡 **MEDIO**: Controles y monitoreo específico  
+    - 🟢 **BAJO**: Procedimientos estándar
+    
+    **Categorías de Impacto:**
+    - 🔊 Acústico
+    - 🚗 Vial
+    - 🛡️ Seguridad  
+    - 👥 Social
+    - 🌿 Ambiental
+    """)
+    
+    st.markdown("---")
+    st.subheader("📊 Estadísticas del Sistema")
+    st.write(f"• **Reglas activas:** {len(base_conocimiento)}")
+    st.write(f"• **Categorías de riesgo:** 3 niveles")
+    st.write(f"• **Tipos de impacto:** 5 categorías")
 
-    st.subheader("🔍 Diagnóstico de Riesgo Urbano")
-    for r in resultados:
-        st.write(f"- {r}")
+# Layout principal
+col1, col2 = st.columns([1, 1])
 
-    st.subheader("💡 Explicación del Diagnóstico")
-    if explicaciones:
-        for exp in explicaciones:
-            st.write(f"- {exp}")
-    else:
-        st.write("No se aplicaron reglas específicas - Impacto urbano mínimo")
+with col1:
+    st.subheader("📝 Datos del Proyecto")
+    
+    # Inputs del usuario
+    tipo_obra = st.selectbox(
+        "Tipo de obra:",
+        ["demolicion", "excavacion", "via_publica", "construccion", "excavacion_profunda"],
+        help="Seleccione el tipo de obra a evaluar",
+        index=0
+    )
+    
+    horario = st.selectbox(
+        "Horario de trabajo:",
+        ["diurno", "nocturno", "mixto"],
+        help="Horario principal de ejecución de la obra",
+        index=0
+    )
+    
+    duracion = st.slider(
+        "Duración estimada (días):",
+        min_value=1,
+        max_value=180,
+        value=30,
+        help="Duración total estimada del proyecto"
+    )
+    
+    zona = st.text_input(
+        "Zona urbana:",
+        value="residencial",
+        help="Ejemplos: residencial, centro, escolar, industrial, comercial, residencial centro...",
+        placeholder="Ingrese el tipo de zona urbana"
+    )
+    
+    # Botón de evaluación
+    if st.button("🚀 Evaluar Riesgo Urbano", type="primary", use_container_width=True):
+        with st.spinner("Analizando riesgos urbanos..."):
+            resultados, reglas_aplicadas, datos_entrada = motor_inferencia(tipo_obra, horario, duracion, zona)
+            st.session_state.resultados = resultados
+            st.session_state.reglas_aplicadas = reglas_aplicadas
+            st.session_state.datos_entrada = datos_entrada
+            st.session_state.mostrar_resultados = True
 
-    st.subheader("📈 Datos procesados")
-    st.json(base_hechos)
+with col2:
+    st.subheader("🎯 Sistema de Decisiones")
+    mostrar_grafo_textual()
 
-    st.subheader("🎨 Grafo de Decisiones")
-    visualizar_grafo()
+# Mostrar resultados si existen
+if hasattr(st.session_state, 'mostrar_resultados') and st.session_state.mostrar_resultados:
+    st.markdown("---")
+    st.subheader("🔍 Resultados de la Evaluación")
+    
+    resultados = st.session_state.resultados
+    datos_entrada = st.session_state.datos_entrada
+    
+    # Resumen ejecutivo
+    st.info(f"""
+    **Proyecto Analizado:** {datos_entrada['tipo_obra'].title()} | 
+    **Horario:** {datos_entrada['horario'].title()} | 
+    **Duración:** {datos_entrada['duracion']} días | 
+    **Zona:** {datos_entrada['zona'].title()}
+    """)
+    
+    # Contadores de riesgo
+    alto_riesgo = sum(1 for r in resultados if r['riesgo'] == 'ALTO')
+    medio_riesgo = sum(1 for r in resultados if r['riesgo'] == 'MEDIO')
+    bajo_riesgo = sum(1 for r in resultados if r['riesgo'] == 'BAJO')
+    
+    # Métricas de riesgo
+    col_met1, col_met2, col_met3, col_met4 = st.columns(4)
+    
+    with col_met1:
+        st.metric("Riesgos ALTOS", alto_riesgo, delta_color="inverse")
+    
+    with col_met2:
+        st.metric("Riesgos MEDIOS", medio_riesgo)
+    
+    with col_met3:
+        st.metric("Riesgos BAJOS", bajo_riesgo, delta_color="off")
+        
+    with col_met4:
+        st.metric("Total Medidas", len(resultados))
+    
+    # Mostrar diagnósticos por categoría de riesgo
+    st.subheader("📋 Medidas Recomendadas")
+    
+    # Agrupar por nivel de riesgo
+    resultados_altos = [r for r in resultados if r['riesgo'] == 'ALTO']
+    resultados_medios = [r for r in resultados if r['riesgo'] == 'MEDIO']
+    resultados_bajos = [r for r in resultados if r['riesgo'] == 'BAJO']
+    
+    if resultados_altos:
+        st.error("### 🔴 Medidas de Alto Riesgo")
+        for i, resultado in enumerate(resultados_altos, 1):
+            with st.expander(f"{resultado['id']}: {resultado['accion']}", expanded=True):
+                st.write(f"**Categoría:** {resultado['categoria']}")
+                st.write(f"**Fundamento técnico:** {resultado['explicacion']}")
+    
+    if resultados_medios:
+        st.warning("### 🟡 Medidas de Riesgo Medio")
+        for i, resultado in enumerate(resultados_medios, 1):
+            with st.expander(f"{resultado['id']}: {resultado['accion']}", expanded=True):
+                st.write(f"**Categoría:** {resultado['categoria']}")
+                st.write(f"**Fundamento técnico:** {resultado['explicacion']}")
+    
+    if resultados_bajos:
+        st.success("### 🟢 Medidas de Bajo Riesgo")
+        for i, resultado in enumerate(resultados_bajos, 1):
+            with st.expander(f"{resultado['id']}: {resultado['accion']}", expanded=True):
+                st.write(f"**Categoría:** {resultado['categoria']}")
+                st.write(f"**Fundamento técnico:** {resultado['explicacion']}")
+    
+    # Resumen técnico
+    st.subheader("📊 Resumen Técnico")
+    col_tech1, col_tech2 = st.columns(2)
+    
+    with col_tech1:
+        st.write("**Reglas Aplicadas:**")
+        for regla_id in st.session_state.reglas_aplicadas:
+            st.write(f"• {regla_id}")
+        if not st.session_state.reglas_aplicadas:
+            st.write("• R0 (Procedimiento estándar)")
+    
+    with col_tech2:
+        st.write("**Distribución por Categoría:**")
+        categorias = {}
+        for resultado in resultados:
+            cat = resultado['categoria']
+            categorias[cat] = categorias.get(cat, 0) + 1
+        
+        for categoria, count in categorias.items():
+            st.write(f"• {categoria}: {count} medida(s)")
+
+# Información adicional
+st.markdown("---")
+st.subheader("📖 Guía Rápida de Uso")
+
+col_guide1, col_guide2, col_guide3 = st.columns(3)
+
+with col_guide1:
+    st.markdown("""
+    **🏭 Tipos de Obra:**
+    - Demolición: Derribo de estructuras
+    - Excavación: Movimientos de tierra
+    - Vía Pública: Trabajos en calles
+    - Construcción: Edificaciones nuevas
+    - Excavación Profunda: Subsuelo > 3m
+    """)
+
+with col_guide2:
+    st.markdown("""
+    **⏰ Horarios:**
+    - Diurno: 6:00 - 20:00
+    - Nocturno: 20:00 - 6:00  
+    - Mixto: Combinación ambos
+    """)
+
+with col_guide3:
+    st.markdown("""
+    **🗺️ Zonas Comunes:**
+    - Residencial: Viviendas
+    - Centro: Área central
+    - Escolar: Cerca de escuelas
+    - Industrial: Zonas fabriles
+    - Comercial: Área de comercios
+    """)
+
+# Footer
+st.markdown("---")
+st.markdown(
+    """
+    <div style='text-align: center; color: gray;'>
+        🏗️ Sistema Experto de Evaluación de Riesgo Urbano | 
+        Desarrollado con técnicas de Inteligencia Artificial | 
+        Versión 2.0 - Streamlit Native
+    </div>
+    """,
+    unsafe_allow_html=True
+)

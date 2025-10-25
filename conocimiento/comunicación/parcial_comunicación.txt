@@ -1,0 +1,193 @@
+RESUMEN DE ESTUDIO INTEGRAL PARA PARCIAL DE COMUNICACIÓN
+I. FUNDAMENTOS DE LA COMUNICACIÓN
+Concepto y características
+Definición : Proceso social de intercambio de mensajes y producción de sentido mediante signos.
+Origen etimológico : Del latín "comunicare" (poner en común).
+Características esenciales :
+Proceso con mediatez (usa canales)
+Busca retroalimentación
+Es irrepetible e irreversible
+Ocurre en contexto específico
+Elementos del Proceso Comunicativo
+Emisor : Inicia el acto comunicativo, codifica el mensaje.
+Receptor : Recibe e interpreta el mensaje.
+Mensaje : Contenido/información transmitida.
+Código : Sistema de signos y reglas compartidos (ej: idioma).
+Canal : Medio físico por donde circula el mensaje (ej: aire, internet).
+Contexto : Situación y entorno que rodea el acto comunicativo.
+Feedback/Retroalimentación : Respuesta del receptor que permite ajustar la comunicación.
+II. MODELOS Y ESCUELAS DE COMUNICACIÓN
+Paradigma Informacional / Lineal
+Enfoque : Comunicación unidireccional (emisor → receptor). Se centra en la transmisión eficaz.
+Modelo de Shannon y Weaver (Matemático) :
+Elementos: Fuente → Emisor (codifica) → Canal → Receptor (decodifica) → Destino.
+Ruido: Interferencia en el canal.
+Crítica: Mecanicista, ignorante contexto, interpretación y retroalimentación.
+Modelo de Lasswell :
+Fórmula: ¿Quién? → Dice qué → Por qué canal → A quién → ¿Con qué efecto?
+Crítica: Lineal, centrada en efectos medibles (origen de la "Teoría de la Bala Mágica").
+Paradigma de la Producción de Sentido / Cultural
+Enfoque : Comunicación como espacio de interacción donde se produce sentido. Receptor activo.
+Conceptos clave :
+Código vs. Texto : El código no es neutral. Los mensajes son "textos" que se encadenan en una red discursiva.
+Discurso Social : Conjunto de lo "decible" en una sociedad, refleja un orden establecido pero es campo de disputa.
+Producción de Sentido : Proceso activo de construcción de significados en la interacción social.
+Escuela de Palo Alto (Interaccional)
+Concepto clave : "Es imposible no comunicar". Toda conducta es comunicación.
+Axiomas de Watzlawick :
+Nivel de Contenido y de Relación : Toda comunicación tiene un "qué" (contenido) y un "cómo" (define la relación).
+Comunicación Digital y Analógica : Lenguaje verbal (digital) y no verbal/paraverbal (analógico).
+Puntuación de la Secuencia : Cada participante estructura la interacción como causa-efecto desde su perspectiva.
+Simetría y Complementariedad : Relaciones de igualdad (simétricas) o basadas en diferencias (complementarias).
+Modelo de Osgood y Schramm (Circular)
+Concepto clave : Comunicación como proceso circular e interactivo.
+Elementos : Codificación → Decodificación → Interpretación.
+Idea central : Emisor y receptor son intercambiables. Requiere campo de experiencia superpuesto.
+III. DENOTACIÓN Y CONNOTACIÓN (ROLAND BARTHES)
+Denotación
+Definición : Significado literal, objetivo y universal de un signo.
+Características :
+Es el significado del diccionario.
+Vinculado al referente (objeto real).
+Ejemplo : "Rosa" = Planta con flores aromáticas.
+Connotación
+Definición : Significado subjetivo, cultural, emocional o ideológico.
+Características :
+Depende del contexto, cultura y experiencia personal.
+Cargado de valores emocionales e ideológicos.
+Ejemplo : "Rosa" = Amor, pasión, feminidad (cultura occidental).
+Aplicación Práctica
+Todo mensaje tiene ambos niveles.
+Publicidad usa denotación para informar y connotación para persuadir mediante emociones/valores.
+Ejemplo: Anuncio de yogur:
+Denotación: "Yogur con vitaminas".
+Connotación: "Vitalidad, juventud, salud".
+IV. FUNCIONES DEL LENGUAJE (ROMAN JAKOBSON)
+Concepto básico
+Jakobson identificó 6 funciones, cada una centrada en un elemento del proceso comunicativo.
+No son excluyentes, pero en todo acto prima una.
+Las 6 funciones
+Referencial (Contexto) :
+Propósito: Transmitir información objetiva sobre la realidad.
+Ejemplo: "La Tierra gira alrededor del Sol".
+Emotiva/Expresiva (Emisor) :
+Propósito: Expresar sentimientos o interioridad del emisor.
+Ejemplo: "¡Estoy tan feliz!"
+Conativa/Apelativa (Receptor) :
+Propósito: Influir o provocar reacción en el receptor.
+Ejemplo: "¡Cállate!", "Vote por mí".
+Fática (Canal) :
+Propósito: Iniciar, mantener o verificar el canal comunicativo.
+Ejemplo: "¿Hola? ¿Me escuchás?", "Bueno, sigamos".
+Metalingüística (Código) :
+Propósito: Referirse al mismo lenguaje.
+Ejemplo: "¿Qué significa 'efímero'?", "La palabra 'casa' es un sustantivo".
+Poética/Estética (Mensaje) :
+Propósito: Centrar atención en la forma y belleza del mensaje.
+Ejemplo: Poemas, eslóganes creativos.
+V. LOS TRES LENGUAJES DE LA COMUNICACIÓN
+1. Lenguaje Verbal (Digital)
+Definición : Comunicación mediante palabras (habladas o escritas).
+Características : Arbitrario (no hay relación natural entre palabra y objeto), convencional.
+Función : Transmitir contenido lógico y racional.
+2. Lenguaje No Verbal (Analógico o Corporal)
+Definición : Comunicación sin palabras.
+Elementos : Gestos, posturas, expresiones faciales, contacto visual, distancia personal (proxémica).
+Función : Transmitir relaciones y emociones. Suele ser más inconsciente y veraz.
+3. Lenguaje paraverbal
+Definición : Cómo se dice el mensaje verbal.
+Elementos : Tono (agudo/grave), volumen (fuerte/suave), ritmo (rápido/lento), fluidez (pausas, titubeos).
+Función : Matiza, refuerza o contradice el mensaje verbal.
+Importancia de la coherencia
+Comunicación efectiva cuando los tres lenguajes están alineados.
+Incongruencia genera desconfianza (ej: decir "sí" con la cabeza en "no").
+VI. DISEÑO Y COMUNICACIÓN
+Concepto de Diseño
+Definición : Proceso creativo de planificar y proyectar soluciones calificadas a necesidades humanas.
+No basta con ser útil : Busca el "buen diseño" (estética, funcionalidad, significado).
+Matriz FETE (Dimensiones del Diseño)
+Funcional :
+¿Cumple su propósito práctico?
+Ejemplo: Vaso que contiene líquido sin derramar.
+Expresiva :
+Valor estético y simbólico (usa denotación/connotación).
+Ejemplo: Vaso con diseño que comunica "modernidad" o "tradición".
+Tecnológica :
+Materiales y procesos de fabricación.
+Ejemplo: Vaso de vidrio vs. plástico.
+Económica :
+Costos y viabilidad.
+Ejemplo: Vaso producido en masa (barato) vs. artesanal (costoso).
+Aplicaciones Prácticas
+Diseño Gráfico : Traducir necesidades en mensajes visuales claros (afiches, marcas).
+Diseño Sonoro : Combina sonidos, silencios, música y efectos para crear atmósferas (podcasts, vídeo).
+Diseño Audiovisual : Diálogo entre lo visual y lo sonoro. Se organiza en géneros (didáctico, tutorial, narrativo).
+VII. TEORÍAS SOBRE MEDIOS Y AUDIENCIAS
+Teoría de la Aguja Hipodérmica (Bala Mágica)
+Postulado : Medios inyectan mensajes en una audiencia pasiva, con efectos directos y poderosos.
+Contexto : Años 20-30, época de propaganda y totalitarismos.
+Crítica : Exagera el poder de los medios, ignora la capacidad crítica de la audiencia.
+Teoría de los Efectos Limitados (Lazarsfeld)
+Postulado : Los medios tienen efectos débiles, reforzan opiniones preexistentes.
+Conceptos clave :
+Variables intervinientes : Actitudes, grupos sociales, líderes de opinión.
+Exposición selectiva : Atendemos mensajes que confirman nuestras creencias.
+Líderes de opinión : Median entre medios y audiencia.
+Teoría de Usos y Gratificaciones
+Postulado : Audiencia activa que elige medios para satisfacer necesidades específicas.
+Gratificaciones :
+Cognitivas : Información, aprendizaje.
+Afectivas : Entretenimiento, placer.
+Personales : Identidad, autoestima.
+Sociales : Interacción, integración.
+Aplicación : Marketing, diseño de contenidos.
+Configuración de la agenda (McCombs y Shaw)
+Postulado : Medios no dicen qué pensar, sino sobre qué pensar (jerarquizan temas).
+Frase clave : "Lo que no entra en los medios no existe".
+Escuela de Frankfurt (Teoría Crítica)
+Concepto clave : Industria Cultural como sistema de dominación.
+Postulados :
+Medios estandarizan y homogenizan la cultura.
+Consumidor no es soberano, es manipulado.
+Entretenimiento = control social.
+Autores : Adorno, Horkheimer.
+VIII. HERRAMIENTAS ANALÍTICAS
+Mapa conceptual
+Definición : Representación gráfica que organiza jerarquías y relaciones entre conceptos.
+Pasos para crearlo :
+Identificar tema central.
+Seleccionar conceptos clave.
+Organizar jerárquicamente.
+Establecer relaciones con palabras de enlace.
+Revisar y ajustar.
+Análisis de Mensajes
+Preguntas clave :
+¿Qué función del lenguaje predomina? (Jakobson)
+¿Qué denota y qué connota? (Barthes)
+¿Hay coherencia entre los tres lenguajes? (Verbal, no verbal, paraverbal)
+¿Qué efectos busca? (Teorías de medios)
+IX. EJEMPLOS DE APLICACIÓN PRÁCTICA
+Modelo de Shannon y Weaver : Enviar un WhatsApp. Tú (emisor) codifica un mensaje. La app y la red (canal) lo transmiten. Puede haber "ruido" (mala conexión). Tu amigo (receptor) lo decodifica.
+Denotación y Connotación : Un león.
+Denotación: Mamífero felino de gran tamaño, carnívoro.
+Connotación: Fuerza, poder, realeza (como en el emblema de un equipo).
+Función Conativa : Un cartel publicitario que dice: "¡Compra 2, lleva 3!". Busca influir en el comportamiento del receptor.
+Lenguajes en entrevista de trabajo :
+
+Funcional: Contener líquido, tener asa.
+Expresiva: Diseño colorido (diversión) vs. clásico (elegancia).
+Tecnológica: Cerámica (frágil) vs. plástico (resistente).
+Económica: Producción masiva (barata) vs. artesanal (costosa).
+Usos y Gratificaciones : Ver videos de cocina en YouTube.
+Cognitiva: Aprender recetas.
+Afectiva: Disfrutar y relajarse.
+Personal: Sentirse competente.
+Social: Compartir plato con familia.
+Palo Alto ("Imposible no comunicar") : Adolescente en reunión familiar con auriculares y sin hablar. Su conducta comunica desinterés o rechazo a interactuar.
+X. CONSEJOS PARA EL PARCIAL
+Relaciona los temas : No estudios por separado. Ej: Un anuncio se analiza con Jakobson, Barthes y los tres lenguajes.
+Usa ejemplos propios : Demuestra comprensión, no memorización.
+Comparaciones prácticas : Ej: Shannon vs. Palo Alto; Aguja Hipodérmica vs. Usos y Gratificaciones.
+Identifica funciones en textos reales : Ej: Titulares de diario (referencial), publicidades (conativa), poemas (poética).
+Analiza/incoherencia : En discursos políticos, conversaciones cotidianas.
+¡Con este resumen tienes una base sólida para enfrentar el parcial con confianza! Recuerde que la clave está en entender las relaciones entre los conceptos y aplicarlos a ejemplos concretos.

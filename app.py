@@ -4,14 +4,14 @@ import os
 
 # Configuración
 st.set_page_config(
-    page_title="Asistente 4 Materias - Dos Modos",
+    page_title="Asistente 4 Materias - Versión Estable",
     page_icon="🎓",
     layout="wide"
 )
 
 # Título
-st.title("🎓 Asistente 4 Materias - Elige tu Modo de Estudio")
-st.markdown("### Búsqueda Semántica 🤝 IA Generativa - Lo mejor de ambos mundos")
+st.title("🎓 Asistente 4 Materias - Versión Estable")
+st.markdown("### Búsqueda Semántica + IA Generativa - ¡Ahora funcionando!")
 
 # Configuración de materias y profesores
 PROFESORES = {
@@ -68,8 +68,7 @@ with st.sidebar:
         format_func=lambda x: {
             "busqueda": "🔍 Búsqueda Semántica",
             "ia_generativa": "🤖 IA Generativa"
-        }[x],
-        help="Selecciona el modo que mejor se adapte a tu necesidad"
+        }[x]
     )
     
     # Explicación de cada modo
@@ -113,12 +112,49 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# Sistema de Búsqueda Semántica
+# Verificación de dependencias al inicio
+st.markdown("---")
+st.subheader("🔍 Verificación del Sistema")
+
+# Verificar cada dependencia CRÍTICA
+try:
+    import streamlit
+    st.success("✅ Streamlit - FUNCIONANDO")
+except ImportError as e:
+    st.error(f"❌ Streamlit: {e}")
+
+try:
+    import transformers
+    st.success("✅ Transformers - FUNCIONANDO")
+except ImportError as e:
+    st.error(f"❌ Transformers: {e}")
+
+try:
+    import torch
+    st.success("✅ PyTorch - FUNCIONANDO")
+except ImportError as e:
+    st.error(f"❌ PyTorch: {e}")
+
+try:
+    # IMPORTACIÓN CORREGIDA - Sin langchain_community
+    from langchain.embeddings import HuggingFaceEmbeddings
+    st.success("✅ LangChain - FUNCIONANDO")
+except ImportError as e:
+    st.error(f"❌ LangChain: {e}")
+
+try:
+    import sentence_transformers
+    st.success("✅ Sentence Transformers - FUNCIONANDO")
+except ImportError as e:
+    st.error(f"❌ Sentence Transformers: {e}")
+
+# Sistema de Búsqueda Semántica (CON IMPORTS CORREGIDOS)
 @st.cache_resource
 def inicializar_busqueda_semantica():
-    """Inicializar el sistema de búsqueda semántica"""
+    """Inicializar el sistema de búsqueda semántica con imports compatibles"""
     try:
-        from langchain_community.embeddings import HuggingFaceEmbeddings
+        # IMPORTACIÓN CORREGIDA - Usar langchain directo, no community
+        from langchain.embeddings import HuggingFaceEmbeddings
         from langchain.vectorstores import FAISS
         from langchain.text_splitter import RecursiveCharacterTextSplitter
         from langchain.schema import Document
@@ -190,10 +226,10 @@ def inicializar_ia_generativa():
         from transformers import pipeline
         import torch
         
-        # Usar un modelo más ligero para Streamlit Cloud
+        # Usar un modelo más ligero y compatible
         model = pipeline(
             "text-generation",
-            model="microsoft/DialoGPT-medium",  # Modelo liviano y rápido
+            model="microsoft/DialoGPT-medium",
             torch_dtype=torch.float16,
             max_length=1024
         )
@@ -241,7 +277,6 @@ def generar_respuesta_busqueda(consulta, documentos_encontrados, materia):
     respuesta = f"**🔍 Búsqueda Semántica - Resultados para: \"{consulta}\"**\n\n"
     
     # Agrupar por archivo
-    archivos_vistos = set()
     contenido_por_archivo = {}
     
     for doc in documentos_encontrados:
@@ -259,7 +294,7 @@ def generar_respuesta_busqueda(consulta, documentos_encontrados, materia):
             respuesta += f"{contenido}\n\n"
     
     respuesta += "---\n"
-    respuesta += "**💡 Modo Búsqueda Semántica:** Estás viendo información EXACTA de tus archivos. Ideal para encontrar datos específicos."
+    respuesta += "**💡 Modo Búsqueda Semántica:** Estás viendo información EXACTA de tus archivos."
     
     return respuesta
 
@@ -273,51 +308,45 @@ def generar_respuesta_ia(consulta, documentos_encontrados, materia, modelo):
     if not documentos_encontrados:
         contexto = f"Información general sobre {PROFESORES[materia]['nombre']}"
     else:
-        # Combinar toda la información encontrada
         contexto = "\n\n".join([doc.page_content for doc in documentos_encontrados])
     
     try:
-        # Prompt para el modelo
         prompt = f"""
         Eres un tutor educativo especializado en {PROFESORES[materia]['nombre']}.
-        Estás ayudando a un estudiante universitario.
 
-        INFORMACIÓN DE CONTEXTO (de los materiales del curso):
+        INFORMACIÓN DE CONTEXTO:
         {contexto}
 
         PREGUNTA DEL ESTUDIANTE:
         {consulta}
 
-        Proporciona una respuesta educativa, clara y útil basándote en la información anterior.
-        Si la información no es suficiente, sé honesto y sugiere dónde podría encontrar más información.
-        Responde en español de manera natural y conversacional.
+        Proporciona una respuesta educativa, clara y útil.
+        Responde en español de manera natural.
 
         RESPUESTA:
         """
         
-        # Generar respuesta
         respuesta = modelo(
             prompt,
             max_new_tokens=400,
             temperature=0.7,
             do_sample=True,
-            pad_token_id=model.tokenizer.eos_token_id
+            pad_token_id=modelo.tokenizer.eos_token_id
         )
         
         generated_text = respuesta[0]['generated_text']
         
-        # Extraer solo la parte de la respuesta
         if "RESPUESTA:" in generated_text:
             respuesta_texto = generated_text.split("RESPUESTA:")[-1].strip()
         else:
             respuesta_texto = generated_text
         
-        # Agregar información sobre las fuentes si hay documentos
+        # Agregar información sobre las fuentes
         if documentos_encontrados:
             archivos = set(doc.metadata.get("fuente") for doc in documentos_encontrados)
             respuesta_texto += f"\n\n---\n**📚 Fuentes consultadas:** {', '.join(archivos)}"
         
-        respuesta_texto += "\n\n**🤖 Modo IA Generativa:** Esta respuesta fue generada por IA basándose en tu material. Puede contener interpretaciones."
+        respuesta_texto += "\n\n**🤖 Modo IA Generativa:** Respuesta generada por IA."
         
         return respuesta_texto
         
@@ -342,19 +371,17 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Input del usuario - DIFERENTE según el modo
+# Input del usuario
 placeholder_text = {
     "busqueda": f"Buscar en {PROFESORES[materia_seleccionada]['nombre']}...",
     "ia_generativa": f"Preguntar sobre {PROFESORES[materia_seleccionada]['nombre']}..."
 }
 
 if prompt := st.chat_input(placeholder_text[modo]):
-    # Agregar mensaje del usuario
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
     
-    # Procesar según el modo seleccionado
     with st.chat_message("assistant"):
         if modo == "busqueda":
             with st.spinner("🔍 Buscando en tus archivos..."):
@@ -365,24 +392,19 @@ if prompt := st.chat_input(placeholder_text[modo]):
                 )
                 
                 if error:
-                    respuesta = f"**{error}**\n\n"
-                    respuesta += "💡 **Sugerencia:** Intenta con otras palabras clave o cambia al modo IA Generativa."
+                    respuesta = f"**{error}**"
                 else:
                     respuesta = generar_respuesta_busqueda(prompt, documentos_encontrados, materia_seleccionada)
         
-        else:  # Modo IA Generativa
+        else:
             with st.spinner("🤖 Analizando y generando respuesta..."):
-                # Primero buscar información relevante
                 documentos_encontrados, _ = buscar_informacion_relevante(
                     prompt, 
                     materia_seleccionada,
                     cantidad_resultados=3
                 )
-                
-                # Luego generar respuesta con IA
                 respuesta = generar_respuesta_ia(prompt, documentos_encontrados, materia_seleccionada, modelo_ia)
         
-        # Efecto de escritura
         placeholder = st.empty()
         respuesta_completa = ""
         
@@ -419,56 +441,19 @@ with col4:
     status_ia = "🟢" if modelo_ia else "🔴"
     st.metric("IA Generativa", status_ia)
 
-# Guía de uso
+# Estado del sistema
 st.markdown("---")
-st.success("""
-**🎯 Guía de Uso - Cuándo usar cada modo:**
-
-### 🔍 **BÚSQUEDA SEMÁNTICA - Usa cuando:**
-- Necesitas información EXACTA de tus archivos
-- Quieres saber en qué archivo está la información
-- Buscas datos específicos (fechas, ejercicios, conceptos puntuales)
-- Prefieres velocidad y confiabilidad absoluta
-
-### 🤖 **IA GENERATIVA - Usa cuando:**
-- Quieres explicaciones naturales y conversacionales
-- Necesitas que sinteticen información de múltiples fuentes
-- Tienes preguntas complejas que requieren razonamiento
-- Prefieres respuestas más elaboradas y contextuales
-
-### 💡 **Consejo:** ¡Prueba ambos modos y ve cuál te funciona mejor para cada situación!
-""")
-
-# Ejemplos específicos por modo y materia
-st.markdown("---")
-col_ej1, col_ej2 = st.columns(2)
-
-with col_ej1:
-    st.markdown("**🔍 Ejemplos para Búsqueda Semántica:**")
-    if materia_seleccionada == "estadistica":
-        st.markdown("- 'Ejercicio 3 de la guía 2'")
-        st.markdown("- 'Fórmula de la media ponderada'")
-        st.markdown("- 'Fecha del parcial'")
-    elif materia_seleccionada == "campo_laboral":
-        st.markdown("- 'Requisitos del trabajo práctico'")
-        st.markdown("- 'Consejos para entrevistas'")
-        st.markdown("- 'Evaluación de la presentación'")
-
-with col_ej2:
-    st.markdown("**🤖 Ejemplos para IA Generativa:**")
-    if materia_seleccionada == "estadistica":
-        st.markdown("- 'Explícame el teorema de Bayes'")
-        st.markdown("- '¿Cómo estudio para el parcial?'")
-        st.markdown("- 'Diferencia entre media y mediana'")
-    elif materia_seleccionada == "campo_laboral":
-        st.markdown("- '¿Cómo preparo una buena entrevista?'")
-        st.markdown("- 'Qué valora más la profesora Acri?'")
-        st.markdown("- 'Consejos para mi CV'")
+if buscador and modelo_ia:
+    st.success("**🎉 ¡Sistema completamente operativo! Ambos modos están funcionando.**")
+elif buscador:
+    st.warning("**⚠️ Sistema parcialmente operativo: Búsqueda Semántica funciona, IA Generativa no está disponible.**")
+else:
+    st.error("**❌ Sistema no operativo: Revisa los errores de instalación arriba.**")
 
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: green; font-weight: bold;'>"
-    "🎓 ASISTENTE 4 MATERIAS - DOS MODOS, INFINITAS POSIBILIDADES DE APRENDIZAJE"
+    "🎓 ASISTENTE 4 MATERIAS - VERSIÓN ESTABLE"
     "</div>",
     unsafe_allow_html=True
 )

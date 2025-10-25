@@ -1,478 +1,365 @@
 import streamlit as st
-import os
-import time
+import matplotlib.pyplot as plt
+import networkx as nx
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Asistente 4 Materias - Dual Mode",
-    page_icon="🎓",
+    page_title="Sistema Experto de Riesgo Urbano",
+    page_icon="🏗️",
     layout="wide"
 )
 
-# ==================== IMPORTACIONES CONDICIONALES ====================
-SENTENCE_TRANSFORMERS_AVAILABLE = False
-TRANSFORMERS_AVAILABLE = False
-
-try:
-    from sentence_transformers import SentenceTransformer
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    st.warning("⚠️ sentence-transformers no disponible. Usando modo fallback.")
-
-try:
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-    import torch
-    TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    st.warning("⚠️ transformers no disponible. IA Generativa deshabilitada.")
-
-# ==================== DEFINICIONES ====================
-PROFESORES = {
-    "estadistica": {
-        "nombre": "Estadística",
-        "emoji": "📊",
-        "profesor": "Prof. Matemáticas",
-        "consejo": "Practica con ejercicios y memoriza las fórmulas clave",
-        "ejemplos_busqueda": [
-            "Ejercicio 3 de la guía 2",
-            "Fórmula de la media ponderada",
-            "Fecha del parcial"
-        ],
-        "ejemplos_ia": [
-            "Explícame el teorema de Bayes",
-            "¿Cómo estudio para el parcial?",
-            "Diferencia entre media y mediana"
-        ]
+# -------------------------
+# BASE DE CONOCIMIENTO
+# -------------------------
+base_conocimiento = [
+    {
+        "id": "R1",
+        "condicion": lambda tipo_obra, horario, duracion, zona: 
+                    tipo_obra == "demolicion" and horario == "nocturno",
+        "accion": "🚨 PROHIBIR trabajos nocturnos - Implementar barreras acústicas",
+        "explicacion": "Demoliciones nocturnas generan alto impacto acústico en zonas urbanas según normativa ISO 9613-2",
+        "riesgo": "ALTO"
     },
-    "campo_laboral": {
-        "nombre": "Campo Laboral",
-        "emoji": "💼",
-        "profesor": "Prof. Acri",
-        "consejo": "Participa activamente y prepara excelentes presentaciones",
-        "ejemplos_busqueda": [
-            "Requisitos del trabajo práctico",
-            "Consejos para entrevistas",
-            "Criterios de evaluación"
-        ],
-        "ejemplos_ia": [
-            "¿Cómo preparo una buena entrevista?",
-            "Qué valora la profesora Acri?",
-            "Consejos para mi CV"
-        ]
+    {
+        "id": "R2",
+        "condicion": lambda tipo_obra, horario, duracion, zona: 
+                    tipo_obra == "excavacion" and horario == "nocturno",
+        "accion": "⚠️ LIMITAR horarios nocturnos - Usar equipos silenciosos certificados",
+        "explicacion": "Excavaciones nocturnas requieren control estricto de ruido (Límite: 45 dB nocturno)",
+        "riesgo": "MEDIO"
     },
-    "algoritmos": {
-        "nombre": "Algoritmos",
-        "emoji": "💻",
-        "profesor": "Prof. Código",
-        "consejo": "Codifica, practica y entiende la complejidad",
-        "ejemplos_busqueda": [
-            "Algoritmo de ordenamiento quicksort",
-            "Complejidad de búsqueda binaria",
-            "Ejercicio 5 de recursión"
-        ],
-        "ejemplos_ia": [
-            "¿Cuándo usar recursión vs iteración?",
-            "Explícame la notación Big O",
-            "¿Cómo optimizo mi código?"
-        ]
+    {
+        "id": "R3",
+        "condicion": lambda tipo_obra, horario, duracion, zona: 
+                    duracion > 60 and "residencial" in zona,
+        "accion": "📊 Monitoreo acústico continuo - Horarios restringidos 8:00-18:00",
+        "explicacion": "Obras prolongadas en zonas residenciales necesitan control de impacto ambiental continuo",
+        "riesgo": "MEDIO"
     },
-    "redes": {
-        "nombre": "Redes",
-        "emoji": "🌐",
-        "profesor": "Prof. Conectividad",
-        "consejo": "Entiende los protocolos y practica con casos reales",
-        "ejemplos_busqueda": [
-            "Modelo OSI capas",
-            "Protocolo TCP vs UDP",
-            "Configuración de subredes"
-        ],
-        "ejemplos_ia": [
-            "¿Cómo funciona el protocolo HTTP?",
-            "Diferencias entre router y switch",
-            "¿Qué es el DNS?"
-        ]
+    {
+        "id": "R4",
+        "condicion": lambda tipo_obra, horario, duracion, zona: 
+                    tipo_obra == "via_publica" and "centro" in zona,
+        "accion": "🚦 Plan de desvíos vial - Señalización avanzada - Coordinación con tránsito",
+        "explicacion": "Obras en vía pública céntrica afectan significativamente el tráfico según estudio de impacto vial",
+        "riesgo": "ALTO"
+    },
+    {
+        "id": "R5",
+        "condicion": lambda tipo_obra, horario, duracion, zona: 
+                    tipo_obra == "demolicion" and "residencial" in zona,
+        "accion": "🏠 Evacuación temporal vecinos - Protección fachadas colindantes - Seguro de responsabilidad",
+        "explicacion": "Demoliciones en zona residencial requieren seguridad extrema y protección a vecinos",
+        "riesgo": "ALTO"
+    },
+    {
+        "id": "R6",
+        "condicion": lambda tipo_obra, horario, duracion, zona: 
+                    "escolar" in zona and horario == "diurno",
+        "accion": "🏫 Suspender obras en horario escolar - Ruta peatonal segura",
+        "explicacion": "Obras cerca de zonas escolares requieren ajuste de horarios para seguridad de estudiantes",
+        "riesgo": "MEDIO"
+    },
+    {
+        "id": "R7",
+        "condicion": lambda tipo_obra, horario, duracion, zona: 
+                    tipo_obra == "excavacion_profunda" and duracion > 30,
+        "accion": "🕳️ Estudio geotécnico obligatorio - Monitoreo de estructuras vecinas",
+        "explicacion": "Excavaciones profundas prolongadas requieren control geotécnico especializado",
+        "riesgo": "ALTO"
     }
-}
+]
 
-# ==================== UI ====================
-st.title("🎓 Asistente 4 Materias")
-st.markdown("**Búsqueda Semántica 🔍 + IA Generativa 🤖**")
+# -------------------------
+# BASE DE HECHOS
+# -------------------------
+if 'base_hechos' not in st.session_state:
+    st.session_state.base_hechos = {
+        "tipo_obra_actual": "",
+        "horario_actual": "",
+        "duracion_actual": 0,
+        "zona_actual": "",
+        "diagnosticos": [],
+        "reglas_aplicadas": []
+    }
 
-# ==================== SIDEBAR ====================
-with st.sidebar:
-    st.header("⚙️ Configuración")
-    
-    materia_seleccionada = st.selectbox(
-        "📚 Materia:",
-        options=list(PROFESORES.keys()),
-        format_func=lambda x: f"{PROFESORES[x]['emoji']} {PROFESORES[x]['nombre']}"
-    )
-    
-    materia = PROFESORES[materia_seleccionada]
-    
-    st.markdown("---")
-    
-    # Selector de modo - solo si hay al menos un sistema disponible
-    if SENTENCE_TRANSFORMERS_AVAILABLE or TRANSFORMERS_AVAILABLE:
-        opciones_modo = []
-        if SENTENCE_TRANSFORMERS_AVAILABLE:
-            opciones_modo.append("busqueda")
-        if TRANSFORMERS_AVAILABLE:
-            opciones_modo.append("ia_generativa")
-        
-        if len(opciones_modo) > 1:
-            modo = st.radio(
-                "🎯 Modo de Respuesta:",
-                options=opciones_modo,
-                format_func=lambda x: "🔍 Búsqueda Semántica" if x == "busqueda" else "🤖 IA Generativa"
-            )
-        else:
-            modo = opciones_modo[0]
-            st.info(f"Modo activo: {'🔍 Búsqueda' if modo == 'busqueda' else '🤖 IA'}")
-    else:
-        st.error("❌ Ningún sistema disponible")
-        modo = "busqueda"
-    
-    st.markdown("---")
-    st.markdown(f"**👨‍🏫 Profesor:** {materia['profesor']}")
-    st.markdown(f"**💡 Consejo:** {materia['consejo']}")
-    
-    st.markdown("---")
-    
-    with st.expander("🔧 Configuración Avanzada"):
-        cantidad_resultados = st.slider("Resultados:", 1, 7, 3)
-        temperatura = st.slider("Temperatura IA:", 0.1, 1.0, 0.7, 0.1)
-    
-    st.markdown("---")
-    
-    if st.button("🧹 Limpiar Conversación", use_container_width=True):
-        st.session_state.messages = []
-        st.rerun()
+def actualizar_base_hechos(tipo_obra, horario, duracion, zona):
+    st.session_state.base_hechos["tipo_obra_actual"] = tipo_obra
+    st.session_state.base_hechos["horario_actual"] = horario
+    st.session_state.base_hechos["duracion_actual"] = duracion
+    st.session_state.base_hechos["zona_actual"] = zona
+    st.session_state.base_hechos["diagnosticos"] = []
+    st.session_state.base_hechos["reglas_aplicadas"] = []
 
-# ==================== FUNCIONES AUXILIARES ====================
-def dividir_texto(texto, tamano_chunk=800, overlap=150):
-    """Dividir texto en chunks con overlap"""
-    chunks = []
-    inicio = 0
-    
-    while inicio < len(texto):
-        fin = inicio + tamano_chunk
-        chunk = texto[inicio:fin]
-        
-        if fin < len(texto):
-            ultimo_punto = chunk.rfind('.')
-            ultimo_salto = chunk.rfind('\n')
-            corte = max(ultimo_punto, ultimo_salto)
-            if corte > tamano_chunk * 0.6:
-                chunk = chunk[:corte+1]
-                fin = inicio + corte + 1
-        
-        if chunk.strip():
-            chunks.append(chunk.strip())
-        
-        inicio = fin - overlap
-        if inicio >= len(texto):
-            break
-    
-    return chunks
-
-def cargar_documentos():
-    """Cargar todos los documentos de la carpeta conocimiento"""
-    if not os.path.exists("conocimiento"):
-        return [], []
-    
-    textos = []
-    metadatos = []
-    
-    for materia_dir in os.listdir("conocimiento"):
-        materia_path = os.path.join("conocimiento", materia_dir)
-        if os.path.isdir(materia_path):
-            for archivo in os.listdir(materia_path):
-                if archivo.endswith('.txt'):
-                    archivo_path = os.path.join(materia_path, archivo)
-                    try:
-                        with open(archivo_path, 'r', encoding='utf-8') as f:
-                            contenido = f.read().strip()
-                            if contenido:
-                                chunks = dividir_texto(contenido, 800, 150)
-                                for i, chunk in enumerate(chunks):
-                                    textos.append(chunk)
-                                    metadatos.append({
-                                        "materia": materia_dir,
-                                        "archivo": archivo,
-                                        "fuente": f"{materia_dir}/{archivo}",
-                                        "chunk": i
-                                    })
-                    except Exception:
-                        continue
-    
-    return textos, metadatos
-
-# ==================== SISTEMA DE BÚSQUEDA SEMÁNTICA ====================
-@st.cache_resource
-def inicializar_busqueda_semantica():
-    """Inicializar sistema de búsqueda con sentence-transformers"""
-    if not SENTENCE_TRANSFORMERS_AVAILABLE:
-        return None, None, None
-    
-    try:
-        modelo = SentenceTransformer('all-MiniLM-L6-v2')
-        textos, metadatos = cargar_documentos()
-        
-        if not textos:
-            st.warning("⚠️ No se encontraron documentos")
-            return None, None, None
-        
-        with st.spinner("🔄 Generando embeddings..."):
-            embeddings = modelo.encode(textos, show_progress_bar=False, convert_to_numpy=True)
-        
-        st.success(f"✅ Búsqueda semántica lista: {len(textos)} fragmentos")
-        return modelo, embeddings, (textos, metadatos)
-    except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
-        return None, None, None
-
-# ==================== SISTEMA FALLBACK TF-IDF ====================
-@st.cache_resource
-def inicializar_busqueda_tfidf():
-    """Sistema de búsqueda fallback con TF-IDF"""
-    try:
-        from sklearn.feature_extraction.text import TfidfVectorizer
-        
-        textos, metadatos = cargar_documentos()
-        
-        if not textos:
-            st.warning("⚠️ No se encontraron documentos")
-            return None, None, None
-        
-        vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))
-        matriz_tfidf = vectorizer.fit_transform(textos)
-        
-        st.success(f"✅ Búsqueda TF-IDF lista: {len(textos)} fragmentos")
-        return vectorizer, matriz_tfidf, (textos, metadatos)
-    except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
-        return None, None, None
-
-# ==================== SISTEMA IA GENERATIVA ====================
-@st.cache_resource
-def inicializar_ia_generativa():
-    """Inicializar modelo generativo"""
-    if not TRANSFORMERS_AVAILABLE:
-        return None, None
-    
-    try:
-        model_name = "distilgpt2"
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        modelo = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
-        )
-        
-        if tokenizer.pad_token is None:
-            tokenizer.pad_token = tokenizer.eos_token
-        
-        st.success("✅ IA Generativa lista")
-        return modelo, tokenizer
-    except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
-        return None, None
-
-# ==================== INICIALIZACIÓN ====================
-with st.spinner("🔄 Inicializando sistemas..."):
-    if SENTENCE_TRANSFORMERS_AVAILABLE:
-        modelo_embed, embeddings_bd, datos = inicializar_busqueda_semantica()
-    else:
-        modelo_embed, embeddings_bd, datos = inicializar_busqueda_tfidf()
-    
-    if TRANSFORMERS_AVAILABLE:
-        modelo_gen, tokenizer_gen = inicializar_ia_generativa()
-    else:
-        modelo_gen, tokenizer_gen = None, None
-
-# ==================== FUNCIONES DE BÚSQUEDA ====================
-def buscar_con_embeddings(consulta, modelo, embeddings, datos, materia_obj, k):
-    """Buscar usando embeddings de sentence-transformers"""
-    textos, metadatos = datos
-    query_embedding = modelo.encode([consulta], convert_to_numpy=True)
-    similitudes = cosine_similarity(query_embedding, embeddings)[0]
-    indices_ordenados = np.argsort(similitudes)[::-1]
-    
+# -------------------------
+# MOTOR DE INFERENCIA
+# -------------------------
+def motor_inferencia(tipo_obra, horario, duracion, zona):
+    actualizar_base_hechos(tipo_obra, horario, duracion, zona)
     resultados = []
-    for idx in indices_ordenados:
-        if similitudes[idx] < 0.1:
-            continue
-        if materia_obj and metadatos[idx]["materia"] != materia_obj:
-            continue
-        
-        resultados.append({
-            "texto": textos[idx],
-            "metadata": metadatos[idx],
-            "score": float(similitudes[idx])
-        })
-        
-        if len(resultados) >= k:
-            break
     
-    return resultados
-
-def buscar_con_tfidf(consulta, vectorizer, matriz, datos, materia_obj, k):
-    """Buscar usando TF-IDF"""
-    textos, metadatos = datos
-    query_vector = vectorizer.transform([consulta])
-    similitudes = cosine_similarity(query_vector, matriz)[0]
-    indices_ordenados = np.argsort(similitudes)[::-1]
+    for regla in base_conocimiento:
+        if regla["condicion"](tipo_obra, horario, duracion, zona):
+            resultados.append({
+                "accion": regla["accion"],
+                "explicacion": regla["explicacion"],
+                "riesgo": regla["riesgo"],
+                "id": regla["id"]
+            })
+            st.session_state.base_hechos["diagnosticos"].append(regla["accion"])
+            st.session_state.base_hechos["reglas_aplicadas"].append(regla["id"])
     
-    resultados = []
-    for idx in indices_ordenados:
-        if similitudes[idx] < 0.05:
-            continue
-        if materia_obj and metadatos[idx]["materia"] != materia_obj:
-            continue
-        
-        resultados.append({
-            "texto": textos[idx],
-            "metadata": metadatos[idx],
-            "score": float(similitudes[idx])
-        })
-        
-        if len(resultados) >= k:
-            break
-    
-    return resultados
-
-def buscar_informacion(consulta, materia_obj, k):
-    """Buscar información relevante"""
-    if datos is None:
-        return [], "Sistema no disponible"
-    
-    try:
-        if SENTENCE_TRANSFORMERS_AVAILABLE and modelo_embed is not None:
-            resultados = buscar_con_embeddings(consulta, modelo_embed, embeddings_bd, datos, materia_obj, k)
-        else:
-            resultados = buscar_con_tfidf(consulta, modelo_embed, embeddings_bd, datos, materia_obj, k)
-        
-        if not resultados:
-            return [], "No encontré información relevante"
-        
-        return resultados, None
-    except Exception as e:
-        return [], f"Error: {str(e)}"
-
-def generar_respuesta_busqueda(consulta, resultados):
-    """Generar respuesta formateada para búsqueda"""
-    if not resultados:
-        return "❌ No encontré información específica.\n\n💡 Intenta reformular tu pregunta."
-    
-    respuesta = f"**🔍 Resultados para: \"{consulta}\"**\n\n"
-    
-    por_archivo = {}
-    for r in resultados:
-        fuente = r['metadata']['fuente']
-        if fuente not in por_archivo:
-            por_archivo[fuente] = []
-        por_archivo[fuente].append(r)
-    
-    for fuente, items in por_archivo.items():
-        respuesta += f"**📁 {fuente}**\n\n"
-        for item in items:
-            texto = item['texto']
-            if len(texto) > 600:
-                texto = texto[:600] + "..."
-            
-            score = item['score']
-            relevancia = "🟢" if score > 0.4 else "🟡" if score > 0.25 else "🟠"
-            respuesta += f"{relevancia} {texto}\n\n"
-    
-    respuesta += f"---\n**💡 {len(resultados)} fragmentos encontrados**"
-    return respuesta
-
-def generar_respuesta_ia(consulta, resultados, temp):
-    """Generar respuesta con IA"""
-    if modelo_gen is None:
-        return "❌ IA Generativa no disponible"
-    
-    contexto = "\n".join([r['texto'][:300] for r in resultados[:2]]) if resultados else "Material general"
-    
-    prompt = f"Pregunta: {consulta}\nContexto: {contexto}\nRespuesta:"
-    
-    try:
-        inputs = tokenizer_gen(prompt, return_tensors="pt", max_length=400, truncation=True)
-        
-        with torch.no_grad():
-            outputs = modelo_gen.generate(
-                inputs.input_ids,
-                max_new_tokens=150,
-                temperature=temp,
-                do_sample=True,
-                top_p=0.9,
-                pad_token_id=tokenizer_gen.eos_token_id
-            )
-        
-        respuesta = tokenizer_gen.decode(outputs[0], skip_special_tokens=True)
-        respuesta = respuesta[len(prompt):].strip()
-        
-        if len(respuesta) > 500:
-            respuesta = respuesta[:500] + "..."
-        
-        return f"{respuesta}\n\n---\n**🤖 Generado por IA**"
-    except Exception as e:
-        return f"❌ Error: {str(e)}"
-
-# ==================== CHAT ====================
-if "messages" not in st.session_state:
-    st.session_state.messages = [{
-        "role": "assistant",
-        "content": f"¡Hola! 👋 Soy tu asistente para **{materia['nombre']}** {materia['emoji']}"
+    return resultados if resultados else [{
+        "accion": "✅ OBRA DE BAJO IMPACTO - Procedimientos estándar aplicables",
+        "explicacion": "No se detectaron condiciones de riesgo elevado según los parámetros ingresados",
+        "riesgo": "BAJO",
+        "id": "R0"
     }]
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# -------------------------
+# MÓDULO DE EXPLICACIÓN
+# -------------------------
+def generar_explicacion():
+    explicaciones = []
+    for regla_id in st.session_state.base_hechos["reglas_aplicadas"]:
+        regla = next((r for r in base_conocimiento if r["id"] == regla_id), None)
+        if regla:
+            explicaciones.append({
+                "id": regla_id,
+                "explicacion": regla['explicacion'],
+                "riesgo": regla.get('riesgo', 'MEDIO')
+            })
+    return explicaciones
 
-if prompt := st.chat_input(f"Pregunta sobre {materia['nombre']}..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+# -------------------------
+# VISUALIZACIÓN DEL GRAFO
+# -------------------------
+def crear_grafo_decisiones():
+    G = nx.DiGraph()
     
-    with st.chat_message("assistant"):
-        with st.spinner("🔍 Procesando..."):
-            resultados, error = buscar_informacion(prompt, materia_seleccionada, cantidad_resultados)
-            
-            if modo == "busqueda":
-                respuesta = generar_respuesta_busqueda(prompt, resultados) if not error else f"❌ {error}"
-            else:
-                respuesta = generar_respuesta_ia(prompt, resultados, temperatura)
-        
-        placeholder = st.empty()
-        texto = ""
-        for linea in respuesta.split('\n'):
-            texto += linea + '\n'
-            time.sleep(0.02)
-            placeholder.markdown(texto + "▌")
-        placeholder.markdown(texto)
-    
-    st.session_state.messages.append({"role": "assistant", "content": texto})
+    # Nodos principales del sistema
+    nodos = [
+        ("INICIO", {"color": "lightgreen", "shape": "oval", "size": 2000}),
+        ("TIPO_OBRA", {"color": "lightblue", "shape": "box", "size": 1500}),
+        ("HORARIO", {"color": "lightblue", "shape": "box", "size": 1500}),
+        ("DURACION", {"color": "lightblue", "shape": "box", "size": 1500}),
+        ("ZONA", {"color": "lightblue", "shape": "box", "size": 1500}),
+        ("EVALUACION", {"color": "yellow", "shape": "diamond", "size": 1800}),
+        ("RIESGO_ALTO", {"color": "red", "shape": "box", "size": 1200}),
+        ("RIESGO_MEDIO", {"color": "orange", "shape": "box", "size": 1200}),
+        ("RIESGO_BAJO", {"color": "green", "shape": "box", "size": 1200}),
+    ]
 
-# ==================== FOOTER ====================
+    # Agregar nodos de reglas específicas
+    for regla in base_conocimiento:
+        nodo_regla = (f"REGLA_{regla['id']}", {"color": "lightcoral", "shape": "ellipse", "size": 1000})
+        nodos.append(nodo_regla)
+
+    for nodo, atributos in nodos:
+        G.add_node(nodo, **atributos)
+
+    # Conexiones del flujo principal
+    conexiones_principales = [
+        ("INICIO", "TIPO_OBRA"),
+        ("TIPO_OBRA", "EVALUACION"),
+        ("HORARIO", "EVALUACION"),
+        ("DURACION", "EVALUACION"),
+        ("ZONA", "EVALUACION"),
+        ("EVALUACION", "RIESGO_ALTO"),
+        ("EVALUACION", "RIESGO_MEDIO"),
+        ("EVALUACION", "RIESGO_BAJO")
+    ]
+
+    for origen, destino in conexiones_principales:
+        G.add_edge(origen, destino, weight=2)
+
+    # Conexiones de reglas específicas
+    for regla in base_conocimiento:
+        G.add_edge("EVALUACION", f"REGLA_{regla['id']}", weight=1)
+        # Determinar nivel de riesgo basado en la acción
+        if regla.get('riesgo') == 'ALTO':
+            G.add_edge(f"REGLA_{regla['id']}", "RIESGO_ALTO", weight=1)
+        elif regla.get('riesgo') == 'MEDIO':
+            G.add_edge(f"REGLA_{regla['id']}", "RIESGO_MEDIO", weight=1)
+        else:
+            G.add_edge(f"REGLA_{regla['id']}", "RIESGO_BAJO", weight=1)
+
+    return G
+
+def visualizar_grafo():
+    G = crear_grafo_decisiones()
+    
+    plt.figure(figsize=(14, 10))
+    
+    # Configurar posiciones
+    pos = nx.spring_layout(G, k=3, iterations=50, seed=42)
+    
+    # Dibujar nodos
+    node_colors = [G.nodes[n]['color'] for n in G.nodes()]
+    node_sizes = [G.nodes[n]['size'] for n in G.nodes()]
+    
+    nx.draw_networkx_nodes(G, pos, node_color=node_colors, 
+                          node_size=node_sizes, alpha=0.9,
+                          edgecolors='black', linewidths=2)
+    
+    # Dibujar aristas
+    nx.draw_networkx_edges(G, pos, edge_color='gray', arrows=True, 
+                          arrowsize=20, arrowstyle='->', width=1.5, alpha=0.7)
+    
+    # Dibujar etiquetas
+    labels = {nodo: nodo.replace('REGLA_', 'R') for nodo in G.nodes()}
+    nx.draw_networkx_labels(G, pos, labels, font_size=8, font_weight='bold')
+    
+    plt.title("🏗️ GRAFO DE DECISIONES - SISTEMA EXPERTO DE RIESGO URBANO", 
+              fontsize=16, fontweight='bold', pad=20)
+    plt.axis('off')
+    
+    return plt.gcf()
+
+# -------------------------
+# INTERFAZ STREAMLIT
+# -------------------------
+
+# Header principal
+st.title("🏗️ Sistema Experto de Evaluación de Riesgo e Impacto Urbano")
 st.markdown("---")
-col1, col2, col3, col4 = st.columns(4)
+
+# Sidebar con información
+with st.sidebar:
+    st.header("ℹ️ Información del Sistema")
+    st.markdown("""
+    **Variables de Evaluación:**
+    - 🏭 Tipo de obra
+    - ⏰ Horario de trabajo  
+    - 📅 Duración del proyecto
+    - 🗺️ Zona urbana afectada
+    
+    **Niveles de Riesgo:**
+    - 🔴 ALTO: Medidas restrictivas
+    - 🟡 MEDIO: Controles específicos  
+    - 🟢 BAJO: Procedimientos estándar
+    """)
+    
+    st.markdown("---")
+    st.subheader("📊 Estadísticas del Sistema")
+    st.write(f"• Reglas activas: {len(base_conocimiento)}")
+    st.write("• Categorías de riesgo: 3")
+    st.write("• Variables de entrada: 4")
+
+# Layout principal en columnas
+col1, col2 = st.columns([1, 1])
 
 with col1:
-    st.metric("Modo", "🔍" if modo == "busqueda" else "🤖")
-with col2:
-    st.metric("Materia", materia['emoji'])
-with col3:
-    st.metric("Búsqueda", "🟢" if datos else "🔴")
-with col4:
-    st.metric("IA", "🟢" if modelo_gen else "🔴")
+    st.subheader("📝 Datos del Proyecto")
+    
+    # Inputs del usuario
+    tipo_obra = st.selectbox(
+        "Tipo de obra:",
+        ["demolicion", "excavacion", "via_publica", "construccion", "excavacion_profunda"],
+        help="Seleccione el tipo de obra a evaluar"
+    )
+    
+    horario = st.selectbox(
+        "Horario de trabajo:",
+        ["diurno", "nocturno", "mixto"],
+        help="Horario principal de ejecución de la obra"
+    )
+    
+    duracion = st.slider(
+        "Duración estimada (días):",
+        min_value=1,
+        max_value=180,
+        value=30,
+        help="Duración total estimada del proyecto"
+    )
+    
+    zona = st.text_input(
+        "Zona urbana:",
+        value="residencial",
+        help="Ej: residencial, centro, escolar, industrial, residencial centro..."
+    )
+    
+    # Botón de evaluación
+    if st.button("🚀 Evaluar Riesgo Urbano", type="primary", use_container_width=True):
+        with st.spinner("Analizando riesgos urbanos..."):
+            resultados = motor_inferencia(tipo_obra, horario, duracion, zona)
+            st.session_state.resultados = resultados
+            st.session_state.mostrar_resultados = True
 
+with col2:
+    st.subheader("🎨 Visualización del Sistema")
+    
+    # Mostrar grafo
+    fig = visualizar_grafo()
+    st.pyplot(fig)
+
+# Mostrar resultados si existen
+if hasattr(st.session_state, 'mostrar_resultados') and st.session_state.mostrar_resultados:
+    st.markdown("---")
+    st.subheader("🔍 Resultados de la Evaluación")
+    
+    resultados = st.session_state.resultados
+    
+    # Contadores de riesgo
+    alto_riesgo = sum(1 for r in resultados if r['riesgo'] == 'ALTO')
+    medio_riesgo = sum(1 for r in resultados if r['riesgo'] == 'MEDIO')
+    bajo_riesgo = sum(1 for r in resultados if r['riesgo'] == 'BAJO')
+    
+    # Métricas de riesgo
+    col_met1, col_met2, col_met3 = st.columns(3)
+    
+    with col_met1:
+        st.metric("Riesgos ALTOS", alto_riesgo, delta_color="inverse")
+    
+    with col_met2:
+        st.metric("Riesgos MEDIOS", medio_riesgo)
+    
+    with col_met3:
+        st.metric("Riesgos BAJOS", bajo_riesgo, delta_color="off")
+    
+    # Mostrar diagnósticos
+    for i, resultado in enumerate(resultados, 1):
+        # Color según riesgo
+        if resultado['riesgo'] == 'ALTO':
+            color = "red"
+            icon = "🚨"
+        elif resultado['riesgo'] == 'MEDIO':
+            color = "orange" 
+            icon = "⚠️"
+        else:
+            color = "green"
+            icon = "✅"
+        
+        with st.expander(f"{icon} Medida {i} - Riesgo {resultado['riesgo']}", expanded=True):
+            st.markdown(f"**Acción requerida:** {resultado['accion']}")
+            st.markdown(f"**Fundamento técnico:** {resultado['explicacion']}")
+            st.markdown(f"**Regla aplicada:** {resultado['id']}")
+    
+    # Módulo de explicación detallada
+    st.markdown("---")
+    st.subheader("💡 Explicación Detallada del Diagnóstico")
+    
+    explicaciones = generar_explicacion()
+    if explicaciones:
+        for exp in explicaciones:
+            st.info(f"**{exp['id']}** - {exp['explicacion']} (Riesgo: {exp['riesgo']})")
+    else:
+        st.success("No se aplicaron reglas específicas - El proyecto presenta impacto urbano mínimo según los parámetros analizados")
+    
+    # Datos procesados
+    with st.expander("📈 Datos Técnicos Procesados"):
+        st.json(st.session_state.base_hechos)
+
+# Footer
 st.markdown("---")
 st.markdown(
-    "<div style='text-align: center; color: #28a745; font-weight: bold;'>"
-    "🎓 ASISTENTE 4 MATERIAS - DUAL MODE AI"
-    "</div>",
+    """
+    <div style='text-align: center; color: gray;'>
+        🏗️ Sistema Experto de Evaluación de Riesgo Urbano | 
+        Desarrollado con técnicas de Inteligencia Artificial
+    </div>
+    """,
     unsafe_allow_html=True
 )

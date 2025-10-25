@@ -118,7 +118,7 @@ with st.sidebar:
 def inicializar_busqueda_semantica():
     """Inicializar el sistema de búsqueda semántica"""
     try:
-        from langchain_community.embeddings import HuggingFaceEmbeddings
+        from langchain.embeddings import HuggingFaceEmbeddings
         from langchain.vectorstores import FAISS
         from langchain.text_splitter import RecursiveCharacterTextSplitter
         from langchain.schema import Document
@@ -472,3 +472,4 @@ st.markdown(
     "</div>",
     unsafe_allow_html=True
 )
+
